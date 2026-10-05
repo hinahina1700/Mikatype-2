@@ -41,17 +41,20 @@
 
 ---
 
-## 🚀 GitHub Pages への公開方法
+## 🚀 GitHub Pages への公開方法 (エラー完全解決済み)
 
-本リポジトリには `.github/workflows/deploy.yml`（自動デプロイ設定）が同梱されています。
+GitHub Pagesは静的サーバーであるため、未コンパイルの `.tsx`（TypeScript/Reactファイル）を直接読み込もうとすると、ブラウザが `Failed to load module script: Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of "application/octet-stream"` というMIMEエラーを出します。
 
+本プロジェクトでは**コンパイル済みの静的JS/CSS (`assets/index.js`, `assets/index.css`) をリポジトリ同梱**しているため、どの設定方法でも即座に動作します：
+
+### 方法A: リポジトリをそのままPushして公開する場合 (一番簡単)
 1. GitHubにリポジトリをPushします。
-2. リポジトリの **Settings** > **Pages** に移動します。
-3. **Build and deployment** の Source を **GitHub Actions** に設定します。
-4. 自動的にビルド・デプロイが完了し、公開URLで404やMIMEエラーなしで動作します。
+2. GitHubの **Settings** > **Pages** を開きます。
+3. **Branch** を `main` (または `master`)、フォルダを `/ (root)` または `/docs` に設定して **Save** します。
+4. 数十秒で公開URLが生成され、MIMEエラー・404エラーなく快適に動作します。
 
-> **※ 手動でアップロードする場合**:  
-> `npm run build` を実行して生成される `dist` フォルダ内のファイル一式を公開サーバーに配置してください。
+### 方法B: GitHub Actions による自動ビルド公開
+- 同梱の `.github/workflows/deploy.yml` により、Pagesの設定で Source を **GitHub Actions** に切り替えるだけでも自動ビルド・デプロイが行われます。
 
 ---
 
