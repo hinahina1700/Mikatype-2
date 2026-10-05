@@ -7,6 +7,7 @@ import { MikaSettings } from './types.ts';
 import { sound } from './sound.ts';
 import { achievementManager } from './achievements.ts';
 import { battleManager } from './battle.ts';
+import { analytics } from './analytics.ts';
 
 export class MikaEngine {
   private canvas: HTMLCanvasElement;
@@ -150,15 +151,15 @@ export class MikaEngine {
   private menu_function_table: number[] = [];
   private sel_flag: number[] = [];
 
-  // Top Menu: 7: オンライン対戦練習, 8: 実績, 9: 裏メニュー
+  // Top Menu: 1〜4: 練習, 5: 成績表示, 6: 分析・弱点データ, 7: 対戦モード, 8: 実績, 9: 裏メニュー
   private menu_mes_s = [
     "ポジション練習",
     "ランダム練習",
     "英単語練習",
     "ローマ字練習",
     "成績表示",
-    "成績消去",
-    "オンライン対戦練習",
+    "分析・弱点データ (Analytics)",
+    "対戦モード (オフライン・オンライン)",
     "実績",
     "裏メニュー"
   ];
@@ -173,8 +174,38 @@ export class MikaEngine {
     [14.1*14, 20*8],
     [15.9*14, 20*8]
   ];
-  private menu_s_function = [21, 22, 23, 24, 29, 30, 70, 88, 90];
+  private menu_s_function = [21, 22, 23, 24, 29, 60, 70, 88, 90];
   private menu_s_sel_flag = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+  // 対戦メニュー (機能番号 70)
+  private menu_mes_battle = [
+    "オフライン練習 (ゴースト対戦)",
+    "オンライン対戦 (部屋作成・参加)",
+    "メニューに戻る"
+  ];
+  private menu_cord_battle = [
+    [4*14, 20*8],
+    [7*14, 20*8],
+    [10*14, 20*8]
+  ];
+  private battle_menu_function = [71, 72, 9001];
+  private battle_sel_flag = [0, 0, 0];
+
+  // オンライン対戦詳細メニュー (機能番号 72)
+  private menu_mes_online_detail = [
+    "ルーム作成 (コード・公開/非公開・ルール)",
+    "ルーム参加 (コード入力・入室)",
+    "マッチ待機・開始",
+    "対戦メニューに戻る"
+  ];
+  private menu_cord_online_detail = [
+    [3*14, 20*8],
+    [6*14, 20*8],
+    [9*14, 20*8],
+    [12*14, 20*8]
+  ];
+  private online_detail_function = [721, 722, 723, 70];
+  private online_detail_sel_flag = [0, 0, 0, 0];
 
   // 裏メニュー定義 (美佳のタイプトレーナー枠内に統合)
   private mes0_secret = "●●●  美佳のタイプトレーナー 裏メニュー  ●●●";
@@ -1097,7 +1128,13 @@ export class MikaEngine {
       this.menexe(this.menu_mes_r, this.menu_cord, this.romaji_menu_function, this.romaji_sel_flag, this.mes0d);
     } else if (this.exec_func_no === 29) {
       this.dispseiseki();
+    } else if (this.exec_func_no === 60) {
+      this.dispAnalytics();
     } else if (this.exec_func_no === 70) {
+      this.dispBattleMenu();
+    } else if (this.exec_func_no === 72) {
+      this.dispOnlineDetailMenu();
+    } else if (this.exec_func_no === 721 || this.exec_func_no === 723) {
       this.dispOnlineBattleWait();
     } else if (this.exec_func_no === 88) {
       this.dispAchievementsScreen();
@@ -1114,10 +1151,125 @@ export class MikaEngine {
     }
 
     this.onStateChange?.({
-      modeName: this.type_kind_mes || (this.exec_func_no === 1 ? "トップメニュー" : this.exec_func_no === 90 ? "裏メニュー" : this.exec_func_no === 88 ? "実績一覧" : this.exec_func_no === 70 ? "オンライン対戦" : "メニュー"),
+      modeName: this.type_kind_mes || (this.exec_func_no === 1 ? "トップメニュー" : this.exec_func_no === 90 ? "裏メニュー" : this.exec_func_no === 88 ? "実績一覧" : this.exec_func_no === 60 ? "分析・弱点データ" : this.exec_func_no === 70 ? "対戦モード" : "メニュー"),
       funcNo: this.exec_func_no,
       inPractice: this.exec_func_no > 400 && this.exec_func_no < 800
     });
+  }
+
+  // --- 6. 高度なタイピング分析＆弱点データ画面 ---
+  public dispAnalytics() {
+    this.cslclr();
+    this.cslcolor(this.magenta);
+    this.cslmencenter(1, "●●●  タイピング分析・ヒートマップ＆弱点データ  ●●●");
+    this.cslcolor(this.blue);
+    this.cslput(1, 43 * 8, "ESCまたはEnterキーでメニューに戻ります");
+
+    // 1. キーボードヒートマップ描画 (最上段〜下一段)
+    this.cslcolor(this.cyan);
+    this.cslput(2 * 16, 2 * 8, "【苦手キー ヒートマップ】(青:得意 → 緑 → 黄 → 赤:苦手)");
+
+    const rows = [MIKA_c_pos1, MIKA_c_pos2, MIKA_c_pos3, MIKA_c_pos4];
+    for (let r = 0; r < 4; r++) {
+      const line = rows[r];
+      for (let c = 0; c < line.length; c++) {
+        const char = line.charAt(c);
+        const ratio = analytics.getKeyMissRatio(char);
+        const x_pos = this.keyposit_x(r + 1);
+        const y_pos = this.keyposit_y(r + 1, c + 1);
+
+        let bg = 'RGB(200,225,255)'; // 青 (得意)
+        if (ratio > 0.35) bg = 'RGB(255,100,100)'; // 赤
+        else if (ratio > 0.20) bg = 'RGB(255,180,80)'; // 橙
+        else if (ratio > 0.08) bg = 'RGB(255,235,100)'; // 黄
+        else if (ratio > 0.02) bg = 'RGB(180,240,160)'; // 緑
+
+        this.cslrectb(x_pos, y_pos - 4, x_pos + 3 * this.width_x, y_pos + 4 * this.width_y + 4, this.key_black, bg, 1);
+        this.cslcolor(this.key_black);
+        this.cslputzscale(x_pos + this.width_x, y_pos + this.width_y, char, 1.8);
+      }
+    }
+
+    // 2. 指ごとのパフォーマンス集計リスト
+    this.cslcolor(this.cyan);
+    this.cslput(16 * 16, 2 * 8, "【担当指別 パフォーマンス】");
+
+    const fingerStats = analytics.getFingerStats();
+    for (let f = 0; f < 5; f++) {
+      const left = fingerStats[f];
+      const right = fingerStats[f + 5];
+      const leftRate = left.typed > 0 ? `${Math.round((left.missed / left.typed) * 100)}%` : '0%';
+      const rightRate = right.typed > 0 ? `${Math.round((right.missed / right.typed) * 100)}%` : '0%';
+
+      this.cslcolor(this.key_black);
+      this.cslput((17 + f) * 16, 2 * 8, `${left.name}: ${left.typed}打 (ミス率 ${leftRate})`);
+      this.cslput((17 + f) * 16, 42 * 8, `${right.name}: ${right.typed}打 (ミス率 ${rightRate})`);
+    }
+
+    // 3. 成長トレンドのレトロ折れ線グラフ
+    this.cslcolor(this.cyan);
+    this.cslput(22 * 16 + 8, 2 * 8, "【練習履歴 成長トレンド (直近)】");
+
+    const hist = analytics.history.slice(-15);
+    if (hist.length >= 2) {
+      const gx1 = this.ycord(28 * 8);
+      const gy1 = this.xcord(23 * 16);
+      const gw = this.ycord(50 * 8);
+      const gh = this.xcord(2 * 16);
+
+      // 背景枠
+      this.g.fillStyle = 'rgba(0,0,0,0.06)';
+      this.g.fillRect(gx1, gy1, gw, gh);
+      this.g.strokeStyle = this.blue;
+      this.g.strokeRect(gx1, gy1, gw, gh);
+
+      // プロット (CPM: 緑, Accuracy: シアン)
+      const maxCpm = Math.max(100, ...hist.map(h => h.cpm));
+      this.g.beginPath();
+      this.g.strokeStyle = this.green;
+      this.g.lineWidth = 2;
+      hist.forEach((h, idx) => {
+        const px = gx1 + (idx / (hist.length - 1)) * gw;
+        const py = gy1 + gh - (h.cpm / maxCpm) * gh;
+        if (idx === 0) this.g.moveTo(px, py);
+        else this.g.lineTo(px, py);
+      });
+      this.g.stroke();
+
+      this.cslcolor(this.green);
+      this.cslput(23 * 16, 68 * 8, `CPM折れ線 (最高: ${maxCpm})`);
+    } else {
+      this.cslcolor(this.key_gray);
+      this.cslput(23 * 16, 28 * 8, "※ 練習を2回以上行うと推移グラフが描画されます");
+    }
+
+    this.renderCheatStatusOverlay();
+  }
+
+  // --- 7. 対戦メニュー ---
+  public dispBattleMenu() {
+    this.menexe(this.menu_mes_battle, this.menu_cord_battle, this.battle_menu_function, this.battle_sel_flag, "●●●  美佳のタイプトレーナー 対戦モード  ●●●");
+  }
+
+  // オフライン練習 (ゴースト対戦)
+  public startOfflineGhostBattle() {
+    achievementManager.unlock('pvp_battle');
+    const shuffled = [...MIKA_w_seq[0]].sort(() => 0.5 - Math.random()).slice(0, 25);
+    this.startBattlePractice(shuffled);
+  }
+
+  // オンライン対戦詳細メニュー
+  public dispOnlineDetailMenu() {
+    this.menexe(this.menu_mes_online_detail, this.menu_cord_online_detail, this.online_detail_function, this.online_detail_sel_flag, "●●●  オンライン対戦 ルーム＆マッチ  ●●●");
+  }
+
+  public promptJoinRoom() {
+    const code = window.prompt("参加するルームコードを入力してください:", battleManager.currentRoom);
+    if (code) {
+      battleManager.setRoom(code, false);
+      alert(`ルーム [${code}] に接続しました！相手の接続を待機します。`);
+    }
+    this.dispOnlineBattleWait();
   }
 
   public dispSecretMenu() {
@@ -1306,7 +1458,16 @@ export class MikaEngine {
   }
 
   public exec_func(nChar: string) {
-    // 画面固有のキーハンドリング (実績画面: 88)
+    // 分析画面: 60
+    if (this.exec_func_no === 60) {
+      if (nChar === '\x1b' || nChar === '\r' || nChar === '\n') {
+        this.exec_func_no = 1;
+        this.dispmen();
+        return 1;
+      }
+    }
+
+    // 実績画面: 88
     if (this.exec_func_no === 88) {
       if (nChar === '\x1b' || nChar === '\r' || nChar === '\n') {
         this.exec_func_no = 1;
@@ -1315,8 +1476,17 @@ export class MikaEngine {
       }
     }
 
-    // 画面固有のキーハンドリング (オンライン対戦設定画面: 70)
-    if (this.exec_func_no === 70) {
+    // オンライン対戦詳細メニュー: 72
+    if (this.exec_func_no === 72) {
+      if (nChar === '\x1b') {
+        this.exec_func_no = 70;
+        this.dispmen();
+        return 1;
+      }
+    }
+
+    // オンライン対戦待機・設定画面: 721, 723, または 70旧来
+    if (this.exec_func_no === 721 || this.exec_func_no === 723) {
       if (nChar === '1') {
         this.cycleBattleRoom();
         return 1;
@@ -1330,7 +1500,7 @@ export class MikaEngine {
         return 1;
       }
       if (nChar === '\x1b') {
-        this.exec_func_no = 1;
+        this.exec_func_no = 72;
         this.dispmen();
         return 1;
       }
@@ -1343,6 +1513,73 @@ export class MikaEngine {
     const func_no = this.mencom(this.menu_function_table, this.sel_flag, nChar);
     if (func_no !== 0) {
       this.menu_function_table = [];
+
+      // 60: 分析・弱点データ
+      if (func_no === 60) {
+        this.exec_func_no = 60;
+        this.dispmen();
+        return 1;
+      }
+
+      // 70: 対戦メニュー (オフライン / オンライン)
+      if (func_no === 70) {
+        this.exec_func_no = 70;
+        this.dispmen();
+        return 1;
+      }
+
+      // 71: オフライン練習
+      if (func_no === 71) {
+        this.startOfflineGhostBattle();
+        return 1;
+      }
+
+      // 72: オンライン対戦 (部屋作成・参加)
+      if (func_no === 72) {
+        this.exec_func_no = 72;
+        this.dispmen();
+        return 1;
+      }
+
+      // 721: ルーム作成
+      if (func_no === 721) {
+        const room = window.prompt("作成するルームコードを入力してください (例: ROOM-777):", battleManager.currentRoom);
+        if (room) {
+          const priv = window.confirm("このルームを非公開にしますか？ (OK: 非公開 / キャンセル: 公開)");
+          battleManager.setRoom(room, priv);
+        }
+        this.exec_func_no = 721;
+        this.dispOnlineBattleWait();
+        return 1;
+      }
+
+      // 722: ルーム参加
+      if (func_no === 722) {
+        this.promptJoinRoom();
+        this.exec_func_no = 721;
+        return 1;
+      }
+
+      // 723: マッチ待機・開始
+      if (func_no === 723) {
+        this.exec_func_no = 721;
+        this.dispOnlineBattleWait();
+        return 1;
+      }
+
+      // 88: 実績
+      if (func_no === 88) {
+        this.exec_func_no = 88;
+        this.dispmen();
+        return 1;
+      }
+
+      // 90: 裏メニュー
+      if (func_no === 90) {
+        this.exec_func_no = 90;
+        this.dispmen();
+        return 1;
+      }
 
       // 裏メニュー内の機能分岐 (901〜907)
       if (func_no === 901) {
@@ -1389,21 +1626,6 @@ export class MikaEngine {
 
       this.exec_func_no = func_no;
 
-      if (this.exec_func_no === 70) {
-        this.dispOnlineBattleWait();
-        return 1;
-      }
-
-      if (this.exec_func_no === 88) {
-        this.dispAchievementsScreen();
-        return 1;
-      }
-
-      if (this.exec_func_no === 90) {
-        this.dispSecretMenu();
-        return 1;
-      }
-
       if (this.exec_func_no === 30) {
         if (window.confirm("成績を消去してもいいですか？")) {
           this.seisekiclear();
@@ -1419,7 +1641,7 @@ export class MikaEngine {
       this.dispmen();
       return 1;
     } else {
-      if (nChar === '\x1b' && (this.exec_func_no === 29 || this.exec_func_no === 90 || this.exec_func_no === 88)) {
+      if (nChar === '\x1b' && (this.exec_func_no === 29 || this.exec_func_no === 90 || this.exec_func_no === 88 || this.exec_func_no === 60 || this.exec_func_no === 70)) {
         this.exec_func_no = 1;
         this.dispmen();
         return 1;
@@ -1585,6 +1807,7 @@ export class MikaEngine {
       if (isCorrect) {
         sound.playCorrect();
         achievementManager.addTypedChar();
+        analytics.recordStroke(this.key_char, false);
         this.triggerParticle(this.key_char);
 
         if (this.menu_kind_flag === 3 && this.guide_char === 0 && this.procptimer) {
@@ -1606,6 +1829,9 @@ export class MikaEngine {
 
           this.type_end_time = performance.now();
           this.type_speed_time = Math.floor((this.type_end_time - this.type_start_time) / 1000.0);
+          const acc = (this.type_count / (this.type_count + this.type_err_count)) * 100;
+          const cpm = this.type_speed_time > 0 ? (this.type_count / this.type_speed_time) * 60 : 0;
+          analytics.recordSession(this.type_kind_mes, cpm, acc);
           this.p_time += this.type_speed_time;
           this.saveStorage();
           if (this.menu_kind_flag === 3) this.dikposit(this.err_char, 2);
@@ -1631,6 +1857,7 @@ export class MikaEngine {
         }
       } else {
         sound.playMiss();
+        analytics.recordStroke(this.key_char, true);
         this.disperrorcount(1, 3, 64);
         this.type_err_count++;
         this.disperrorcount(0, 3, 64);
@@ -1750,6 +1977,7 @@ export class MikaEngine {
       if (isCorrect) {
         sound.playCorrect();
         achievementManager.addTypedChar();
+        analytics.recordStroke(this.key_char, false);
         this.triggerParticle(this.key_char);
 
         if (this.type_count + 1 >= this.cline_c) {
@@ -1778,6 +2006,9 @@ export class MikaEngine {
             this.type_time_record[this.type_kind_no] += Math.floor(this.ttype_speed_time);
             this.prockiroku();
             this.proctrainexit();
+
+            const acc = (this.type_count / (this.type_count + this.type_err_count)) * 100;
+            analytics.recordSession(this.type_kind_mes, this.type_speed, acc);
 
             // 対戦進捗同期 (ゴール送信)
             battleManager.broadcastProgress(this.type_count, this.cline_c, this.type_speed, true, true);
@@ -1808,6 +2039,7 @@ export class MikaEngine {
         else { this.c_p1 = 0; this.c_p2++; }
       } else {
         sound.playMiss();
+        analytics.recordStroke(this.key_char, true);
         this.err_char_flag = 1;
         this.disperrchar(1);
         this.disperrorcount(1, 5, 49);
@@ -1830,6 +2062,8 @@ export class MikaEngine {
         this.type_time_record[this.type_kind_no] += this.ttype_speed_time;
         this.prockiroku();
         this.proctrainexit();
+        const acc = (this.type_count / (this.type_count + this.type_err_count)) * 100;
+        analytics.recordSession(this.type_kind_mes, this.type_speed, acc);
       }
     } else {
       if (this.practice_end_flag === 0) {
@@ -1887,6 +2121,7 @@ export class MikaEngine {
       if (isCorrect) {
         sound.playCorrect();
         achievementManager.addTypedChar();
+        analytics.recordStroke(this.key_char as string, false);
         this.triggerParticle(this.key_char as string);
 
         if (this.key_char === ' ' ||
@@ -1921,6 +2156,9 @@ export class MikaEngine {
               this.proctrainexit2();
               if (this.c_p1 < 39) this.c_p1++;
               else { this.c_p1 = 0; this.c_p2++; }
+
+              const acc = (this.type_count / (this.type_count + this.type_err_count)) * 100;
+              analytics.recordSession(this.type_kind_mes, this.type_speed, acc);
 
               battleManager.broadcastProgress(this.w_count, this.cline_c, this.type_speed, true, true);
               if (this.type_err_count === 0) achievementManager.unlock('perfect_accuracy');
@@ -1975,6 +2213,7 @@ export class MikaEngine {
         }
       } else {
         sound.playMiss();
+        analytics.recordStroke(this.key_char as string, true);
         this.err_char_flag = 1;
         this.disperrorcount(1, 5, 65);
         this.type_err_count++;
@@ -1998,6 +2237,8 @@ export class MikaEngine {
         this.type_time_record[this.type_kind_no] += this.ttype_speed_time;
         this.prockiroku();
         this.proctrainexit2();
+        const acc = (this.type_count / (this.type_count + this.type_err_count)) * 100;
+        analytics.recordSession(this.type_kind_mes, this.type_speed, acc);
       }
     } else {
       if (this.practice_end_flag === 0) {

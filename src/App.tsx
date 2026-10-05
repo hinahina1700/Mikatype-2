@@ -8,7 +8,7 @@ import {
   Keyboard, Play, Square, Eye, Zap, RotateCcw,
   Sliders, HelpCircle, Monitor, Award, ArrowLeft,
   Sun, Moon, Maximize2, Minimize2, Sparkles, Shield,
-  Bot, Volume2, VolumeX, Swords, Flame, CheckSquare
+  Bot, Volume2, VolumeX, Swords, Flame, CheckSquare, Activity
 } from 'lucide-react';
 
 interface Particle {
@@ -285,6 +285,16 @@ export default function App() {
 
           <div className="h-4 w-px bg-slate-700 mx-1 hidden sm:block" />
 
+          {/* 6. Analytics */}
+          <button
+            onClick={() => handleKeySend('6')}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-300 border border-cyan-500/50 transition-colors"
+            title="6. 分析・弱点データ (苦手キーヒートマップ・指別集計・成長推移グラフ)"
+          >
+            <Activity className="w-3 h-3" />
+            <span>6. 分析</span>
+          </button>
+
           {/* 7. Online Match */}
           <button
             onClick={() => handleKeySend('7')}
@@ -544,7 +554,9 @@ export default function App() {
                       key={num}
                       onClick={() => handleKeySend(num.toString())}
                       className={`w-6 h-6 rounded font-mono text-xs flex items-center justify-center border active:scale-95 transition-colors ${
-                        num === 7
+                        num === 6
+                          ? 'bg-cyan-600/40 text-cyan-300 border-cyan-500/60 hover:bg-cyan-600/60 font-bold'
+                          : num === 7
                           ? 'bg-indigo-600/40 text-indigo-300 border-indigo-500/60 hover:bg-indigo-600/60 font-bold'
                           : num === 8
                           ? 'bg-yellow-600/40 text-yellow-300 border-yellow-500/60 hover:bg-yellow-600/60 font-bold'
@@ -553,8 +565,10 @@ export default function App() {
                           : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700/60'
                       }`}
                       title={
-                        num === 7
-                          ? '7. オンライン対戦'
+                        num === 6
+                          ? '6. 分析・弱点データ (Analytics)'
+                          : num === 7
+                          ? '7. 対戦モード (オフライン・オンライン)'
                           : num === 8
                           ? '8. 実績'
                           : num === 9
@@ -644,8 +658,9 @@ export default function App() {
               <div className="p-3 bg-slate-950/80 rounded border border-slate-800">
                 <div className="font-medium text-emerald-400 mb-1">【メニュー構成 (1〜9)】</div>
                 <p>1〜4: ポジション練習・ランダム練習・英単語練習・ローマ字練習</p>
-                <p>5〜6: 成績表示・成績消去</p>
-                <p><span className="font-mono text-indigo-400 font-bold">7. オンライン対戦練習</span>: 部屋選択・出題単元選択・チート制限を設定してタブ間対戦！</p>
+                <p>5: 成績表示 (各練習の達成スピード・達成日・累積時間)</p>
+                <p><span className="font-mono text-cyan-400 font-bold">6. 分析・弱点データ (Analytics)</span>: 苦手キーヒートマップ、担当指別集計、折れ線成長推移グラフ！</p>
+                <p><span className="font-mono text-indigo-400 font-bold">7. 対戦モード (オフライン・オンライン)</span>: 部屋作成・参加、公開/非公開、単元選択、チート設定でタブ間対戦！</p>
                 <p><span className="font-mono text-yellow-400 font-bold">8. 実績</span>: 獲得したアチーブメント一覧をCanvas内で確認！</p>
                 <p><span className="font-mono text-amber-400 font-bold">9. 裏メニュー</span>: チート・倍率設定・サウンド切替が可能な隠しメニュー！</p>
               </div>

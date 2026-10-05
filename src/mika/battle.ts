@@ -21,6 +21,7 @@ export interface PeerState {
   playerId: string;
   name: string;
   roomName: string;
+  isPrivate: boolean;
   progress: number; // 0 to 100
   currentTyped: number;
   totalTarget: number;
@@ -33,7 +34,9 @@ export interface PeerState {
 export class BattleManager {
   private channel: BroadcastChannel | null = null;
   public myId: string = 'player_' + Math.random().toString(36).substring(2, 7);
-  public currentRoom: string = '部屋1 (Room 1)';
+  public currentRoom: string = 'ROOM-001';
+  public isPrivateRoom: boolean = false;
+
   public rules: BattleRules = {
     allowAutoInput: false,
     allowAutoPilot: false,
@@ -51,10 +54,11 @@ export class BattleManager {
     this.initChannel(this.currentRoom);
   }
 
-  public setRoom(roomName: string) {
-    this.currentRoom = roomName;
+  public setRoom(roomName: string, isPrivate: boolean = false) {
+    this.currentRoom = roomName.trim() || 'ROOM-001';
+    this.isPrivateRoom = isPrivate;
     this.opponentState = null;
-    this.initChannel(roomName);
+    this.initChannel(this.currentRoom);
     this.broadcastPresence();
     this.onOpponentUpdate?.(null);
   }
@@ -80,6 +84,7 @@ export class BattleManager {
       type: 'presence',
       playerId: this.myId,
       roomName: this.currentRoom,
+      isPrivate: this.isPrivateRoom,
     });
   }
 
@@ -97,6 +102,7 @@ export class BattleManager {
       playerId: this.myId,
       name: '対戦相手(Tab)',
       roomName: this.currentRoom,
+      isPrivate: this.isPrivateRoom,
       progress,
       currentTyped: current,
       totalTarget: total,
@@ -135,12 +141,14 @@ export class BattleManager {
         type: 'presence_ack',
         playerId: this.myId,
         roomName: this.currentRoom,
+        isPrivate: this.isPrivateRoom,
       });
       if (!this.opponentState) {
         this.opponentState = {
           playerId: data.playerId as string,
           name: '相手プレイヤー (別タブ)',
           roomName: this.currentRoom,
+          isPrivate: Boolean(data.isPrivate),
           progress: 0,
           currentTyped: 0,
           totalTarget: 60,
@@ -157,6 +165,7 @@ export class BattleManager {
           playerId: data.playerId as string,
           name: '相手プレイヤー (別タブ)',
           roomName: this.currentRoom,
+          isPrivate: Boolean(data.isPrivate),
           progress: 0,
           currentTyped: 0,
           totalTarget: 60,
@@ -172,6 +181,7 @@ export class BattleManager {
         playerId: data.playerId as string,
         name: (data.name as string) || '相手プレイヤー (別タブ)',
         roomName: this.currentRoom,
+        isPrivate: Boolean(data.isPrivate),
         progress: Number(data.progress) || 0,
         currentTyped: Number(data.currentTyped) || 0,
         totalTarget: Number(data.totalTarget) || 60,
