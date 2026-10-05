@@ -150,7 +150,7 @@ export class MikaEngine {
   private menu_function_table: number[] = [];
   private sel_flag: number[] = [];
 
-  // Top Menu: 7: オンライン対戦練習, 8: 裏メニュー
+  // Top Menu: 7: オンライン対戦練習, 8: 実績, 9: 裏メニュー
   private menu_mes_s = [
     "ポジション練習",
     "ランダム練習",
@@ -159,24 +159,26 @@ export class MikaEngine {
     "成績表示",
     "成績消去",
     "オンライン対戦練習",
+    "実績",
     "裏メニュー"
   ];
   private menu_cord_s = [
-    [2*14, 20*8],
-    [4*14, 20*8],
-    [6*14, 20*8],
-    [8*14, 20*8],
-    [10*14, 20*8],
-    [12*14, 20*8],
-    [14*14, 20*8],
-    [16*14, 20*8]
+    [1.5*14, 20*8],
+    [3.3*14, 20*8],
+    [5.1*14, 20*8],
+    [6.9*14, 20*8],
+    [8.7*14, 20*8],
+    [10.5*14, 20*8],
+    [12.3*14, 20*8],
+    [14.1*14, 20*8],
+    [15.9*14, 20*8]
   ];
-  private menu_s_function = [21, 22, 23, 24, 29, 30, 70, 80];
-  private menu_s_sel_flag = [0, 0, 0, 0, 0, 0, 0, 0];
+  private menu_s_function = [21, 22, 23, 24, 29, 30, 70, 88, 90];
+  private menu_s_sel_flag = [0, 0, 0, 0, 0, 0, 0, 0, 0];
 
   // 裏メニュー定義 (美佳のタイプトレーナー枠内に統合)
   private mes0_secret = "●●●  美佳のタイプトレーナー 裏メニュー  ●●●";
-  private secret_menu_function = [801, 802, 803, 804, 805, 806, 807, 9001];
+  private secret_menu_function = [901, 902, 903, 904, 905, 906, 907, 9001];
   private secret_sel_flag = [0, 0, 0, 0, 0, 0, 0, 0];
   private menu_cord_secret = [
     [2*14, 20*8],
@@ -1097,10 +1099,10 @@ export class MikaEngine {
       this.dispseiseki();
     } else if (this.exec_func_no === 70) {
       this.dispOnlineBattleWait();
-    } else if (this.exec_func_no === 80) {
-      this.dispSecretMenu();
-    } else if (this.exec_func_no === 807) {
+    } else if (this.exec_func_no === 88) {
       this.dispAchievementsScreen();
+    } else if (this.exec_func_no === 90) {
+      this.dispSecretMenu();
     } else if (this.exec_func_no > 400 && this.exec_func_no < 500) {
       this.dispptrain(this.mestb);
     } else if (this.exec_func_no > 500 && this.exec_func_no < 600) {
@@ -1112,7 +1114,7 @@ export class MikaEngine {
     }
 
     this.onStateChange?.({
-      modeName: this.type_kind_mes || (this.exec_func_no === 1 ? "トップメニュー" : this.exec_func_no === 80 ? "裏メニュー" : this.exec_func_no === 70 ? "オンライン対戦" : "メニュー"),
+      modeName: this.type_kind_mes || (this.exec_func_no === 1 ? "トップメニュー" : this.exec_func_no === 90 ? "裏メニュー" : this.exec_func_no === 88 ? "実績一覧" : this.exec_func_no === 70 ? "オンライン対戦" : "メニュー"),
       funcNo: this.exec_func_no,
       inPractice: this.exec_func_no > 400 && this.exec_func_no < 800
     });
@@ -1142,7 +1144,7 @@ export class MikaEngine {
 
     const list = achievementManager.getList();
     this.cslcolor(this.blue);
-    this.cslput(1, 43 * 8, "ESCまたはEnterキーで裏メニューに戻ります");
+    this.cslput(1, 43 * 8, "ESCまたはEnterキーでメニューに戻ります");
 
     list.forEach((ach, index) => {
       const line = 3 + index * 2;
@@ -1162,24 +1164,35 @@ export class MikaEngine {
   public dispOnlineBattleWait() {
     this.cslclr();
     this.cslcolor(this.magenta);
-    this.cslmencenter(1, "●●●  美佳のタイプトレーナー オンライン対戦  ●●●");
+    this.cslmencenter(1, "●●●  美佳のタイプトレーナー オンライン対戦設定  ●●●");
+
+    const genreNames: Record<string, string> = {
+      basic_words: '基本英単語',
+      msdos: 'MS-DOSコマンド',
+      c_lang: 'C言語コード',
+      romaji_words: 'ローマ字単語(完全版)',
+      random_home: 'ランダム練習',
+    };
+
+    this.cslcolor(this.cyan);
+    this.cslput(3 * 16, 10 * 8, `[1] 部屋選択: ${battleManager.currentRoom} (1キーで切替)`);
+    this.cslput(5 * 16, 10 * 8, `[2] トレーナー(単元): ${genreNames[battleManager.rules.genre] || '基本英単語'} (2キーで切替)`);
+    this.cslput(7 * 16, 10 * 8, `[3] チート制限: ${battleManager.rules.allowAutoInput ? "チート使用許可" : "チート禁止(ガチ勝負)"} (3キーで切替)`);
 
     if (battleManager.opponentState) {
       this.cslcolor(this.green);
-      this.cslmencenter(6 * 16, "【対戦相手が接続されています！】");
+      this.cslmencenter(10 * 16, `【対戦相手接続中: ${battleManager.opponentState.name}】`);
       this.cslcolor(this.cyan);
-      this.cslmencenter(8 * 16, "Enterキーを押すと同期マッチを開始します");
-      this.cslcolor(this.blue);
-      this.cslmencenter(10 * 16, "ESCキーを押すとメニューに戻ります");
+      this.cslmencenter(12 * 16, "Enterキーを押すと同期マッチを開始します！");
     } else {
       this.cslcolor(this.orange);
-      this.cslmencenter(5 * 16, "【対戦相手を待機中...】");
+      this.cslmencenter(10 * 16, `【対戦相手を待機中... (${battleManager.currentRoom})】`);
       this.cslcolor(this.key_black);
-      this.cslmencenter(7 * 16, "同じブラウザで別のタブ（またはウィンドウ）を開いてください");
-      this.cslmencenter(9 * 16, "自動的にお互いを検知して対戦準備が完了します");
-      this.cslcolor(this.cyan);
-      this.cslmencenter(12 * 16, "Enterキー: 接続を再確認 / ESCキー: メニューに戻る");
+      this.cslmencenter(12 * 16, "同じブラウザで別のタブ（またはウィンドウ）を開いてください");
     }
+
+    this.cslcolor(this.blue);
+    this.cslmencenter(15 * 16, "Enterキー: マッチ開始 / ESCキー: メニューに戻る");
 
     this.renderCheatStatusOverlay();
   }
@@ -1189,6 +1202,44 @@ export class MikaEngine {
     const curIdx = speeds.indexOf(this.settings.autoSpeed);
     const nextSpeed = (curIdx === -1 || curIdx === speeds.length - 1) ? speeds[0] : speeds[curIdx + 1];
     this.setAutoSpeed(nextSpeed);
+  }
+
+  public cycleBattleRoom() {
+    const rooms = ['部屋1 (Room 1)', '部屋2 (Room 2)', '部屋3 (Room 3)'];
+    const idx = rooms.indexOf(battleManager.currentRoom);
+    const nextRoom = (idx === -1 || idx === rooms.length - 1) ? rooms[0] : rooms[idx + 1];
+    battleManager.setRoom(nextRoom);
+    this.dispOnlineBattleWait();
+  }
+
+  public cycleBattleGenre() {
+    const genres = ['basic_words', 'msdos', 'c_lang', 'romaji_words', 'random_home'] as const;
+    const idx = genres.indexOf(battleManager.rules.genre as typeof genres[number]);
+    const next = (idx === -1 || idx === genres.length - 1) ? genres[0] : genres[idx + 1];
+    battleManager.rules.genre = next;
+    this.dispOnlineBattleWait();
+  }
+
+  public toggleBattleCheatRule() {
+    battleManager.rules.allowAutoInput = !battleManager.rules.allowAutoInput;
+    battleManager.rules.allowAutoPilot = battleManager.rules.allowAutoInput;
+    battleManager.rules.allowInvincible = battleManager.rules.allowAutoInput;
+    this.dispOnlineBattleWait();
+  }
+
+  public startConfiguredBattle() {
+    let wordList: string[] = [];
+    const genre = battleManager.rules.genre;
+
+    if (genre === 'msdos') wordList = [...MIKA_w_seq[1]];
+    else if (genre === 'c_lang') wordList = [...MIKA_w_seq[2]];
+    else if (genre === 'romaji_words') wordList = [...MIKA_romaji_tango_table].slice(0, 50);
+    else if (genre === 'random_home') wordList = ["asdf", "jkl;", "fdsa", "jkl;", "asdf", "jkl;"];
+    else wordList = [...MIKA_w_seq[0]];
+
+    const shuffled = wordList.sort(() => 0.5 - Math.random()).slice(0, battleManager.rules.wordCount || 25);
+    battleManager.startMatchWithOpponent(shuffled);
+    this.startBattlePractice(shuffled);
   }
 
   private menexe(menu_mes: string[], menu_cord: number[][], menu_function: number[], sel_flag: number[], menut: string) {
@@ -1255,33 +1306,37 @@ export class MikaEngine {
   }
 
   public exec_func(nChar: string) {
-    // 画面固有のESC/Enterキーハンドリング
-    if (this.exec_func_no === 807) {
-      // 実績一覧画面から裏メニューに戻る
+    // 画面固有のキーハンドリング (実績画面: 88)
+    if (this.exec_func_no === 88) {
       if (nChar === '\x1b' || nChar === '\r' || nChar === '\n') {
-        this.exec_func_no = 80;
+        this.exec_func_no = 1;
         this.dispmen();
         return 1;
       }
     }
+
+    // 画面固有のキーハンドリング (オンライン対戦設定画面: 70)
     if (this.exec_func_no === 70) {
-      // オンライン対戦待機画面
+      if (nChar === '1') {
+        this.cycleBattleRoom();
+        return 1;
+      }
+      if (nChar === '2') {
+        this.cycleBattleGenre();
+        return 1;
+      }
+      if (nChar === '3') {
+        this.toggleBattleCheatRule();
+        return 1;
+      }
       if (nChar === '\x1b') {
         this.exec_func_no = 1;
         this.dispmen();
         return 1;
       }
       if (nChar === '\r' || nChar === '\n') {
-        if (battleManager.opponentState) {
-          const seed = ["apple", "banana", "coffee", "computer", "keyboard", "screen", "typing", "speed", "trainer", "galaxy", "future", "victory"];
-          battleManager.startMatchWithOpponent(seed);
-          this.startBattlePractice(seed);
-          return 1;
-        } else {
-          battleManager.broadcastPresence();
-          this.dispOnlineBattleWait();
-          return 1;
-        }
+        this.startConfiguredBattle();
+        return 1;
       }
     }
 
@@ -1289,45 +1344,45 @@ export class MikaEngine {
     if (func_no !== 0) {
       this.menu_function_table = [];
 
-      // 裏メニュー内の機能分岐
-      if (func_no === 801) {
+      // 裏メニュー内の機能分岐 (901〜907)
+      if (func_no === 901) {
         this.toggleDopagaki();
-        this.exec_func_no = 80;
+        this.exec_func_no = 90;
         this.dispmen();
         return 1;
       }
-      if (func_no === 802) {
+      if (func_no === 902) {
         this.toggleAutoPilot();
-        this.exec_func_no = 80;
+        this.exec_func_no = 90;
         this.dispmen();
         return 1;
       }
-      if (func_no === 803) {
+      if (func_no === 903) {
         this.toggleInvincible();
-        this.exec_func_no = 80;
+        this.exec_func_no = 90;
         this.dispmen();
         return 1;
       }
-      if (func_no === 804) {
+      if (func_no === 904) {
         this.cycleAutoSpeed();
-        this.exec_func_no = 80;
+        this.exec_func_no = 90;
         this.dispmen();
         return 1;
       }
-      if (func_no === 805) {
+      if (func_no === 905) {
         this.cycleSpeedMultiplier();
-        this.exec_func_no = 80;
+        this.exec_func_no = 90;
         this.dispmen();
         return 1;
       }
-      if (func_no === 806) {
+      if (func_no === 906) {
         sound.enabled = !sound.enabled;
-        this.exec_func_no = 80;
+        this.exec_func_no = 90;
         this.dispmen();
         return 1;
       }
-      if (func_no === 807) {
-        this.exec_func_no = 807;
+      if (func_no === 907) {
+        this.exec_func_no = 88;
         this.dispmen();
         return 1;
       }
@@ -1335,17 +1390,18 @@ export class MikaEngine {
       this.exec_func_no = func_no;
 
       if (this.exec_func_no === 70) {
-        // 7. オンライン対戦練習
-        if (battleManager.opponentState) {
-          const seed = ["apple", "banana", "coffee", "computer", "keyboard", "screen", "typing", "speed", "trainer", "galaxy", "future", "victory"];
-          battleManager.startMatchWithOpponent(seed);
-          this.startBattlePractice(seed);
-          return 1;
-        } else {
-          battleManager.broadcastPresence();
-          this.dispmen();
-          return 1;
-        }
+        this.dispOnlineBattleWait();
+        return 1;
+      }
+
+      if (this.exec_func_no === 88) {
+        this.dispAchievementsScreen();
+        return 1;
+      }
+
+      if (this.exec_func_no === 90) {
+        this.dispSecretMenu();
+        return 1;
       }
 
       if (this.exec_func_no === 30) {
@@ -1363,7 +1419,7 @@ export class MikaEngine {
       this.dispmen();
       return 1;
     } else {
-      if (nChar === '\x1b' && (this.exec_func_no === 29 || this.exec_func_no === 80)) {
+      if (nChar === '\x1b' && (this.exec_func_no === 29 || this.exec_func_no === 90 || this.exec_func_no === 88)) {
         this.exec_func_no = 1;
         this.dispmen();
         return 1;

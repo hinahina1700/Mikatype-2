@@ -3,12 +3,12 @@ import { MikaEngine } from './mika/engine.ts';
 import { MikaSettings, Achievement } from './mika/types.ts';
 import { sound } from './mika/sound.ts';
 import { achievementManager } from './mika/achievements.ts';
-import { battleManager, PeerState } from './mika/battle.ts';
+import { battleManager, PeerState, TrainerGenre } from './mika/battle.ts';
 import {
   Keyboard, Play, Square, Eye, Zap, RotateCcw,
   Sliders, HelpCircle, Monitor, Award, ArrowLeft,
   Sun, Moon, Maximize2, Minimize2, Sparkles, Shield,
-  Bot, Volume2, VolumeX, Swords, Flame
+  Bot, Volume2, VolumeX, Swords, Flame, CheckSquare
 } from 'lucide-react';
 
 interface Particle {
@@ -45,12 +45,16 @@ export default function App() {
   });
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [hideAuxiliaryInFullscreen, setHideAuxiliaryInFullscreen] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [unlockedToast, setUnlockedToast] = useState<Achievement | null>(null);
 
   // Battle State
   const [opponent, setOpponent] = useState<PeerState | null>(null);
   const [battleResult, setBattleResult] = useState<string | null>(null);
+  const [selectedRoom, setSelectedRoom] = useState('部屋1 (Room 1)');
+  const [selectedGenre, setSelectedGenre] = useState<TrainerGenre>('basic_words');
+  const [cheatAllowed, setCheatAllowed] = useState(false);
 
   // Particles for Dopagaki Mode
   const [particles, setParticles] = useState<Particle[]>([]);
@@ -101,7 +105,7 @@ export default function App() {
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+      if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'SELECT') return;
       engine.handleKeyDown(e);
     };
 
@@ -138,6 +142,23 @@ export default function App() {
     engineRef.current?.sendKey(key);
   };
 
+  const handleRoomChange = (room: string) => {
+    setSelectedRoom(room);
+    battleManager.setRoom(room);
+  };
+
+  const handleGenreChange = (genre: TrainerGenre) => {
+    setSelectedGenre(genre);
+    battleManager.rules.genre = genre;
+  };
+
+  const handleCheatToggle = (allowed: boolean) => {
+    setCheatAllowed(allowed);
+    battleManager.rules.allowAutoInput = allowed;
+    battleManager.rules.allowAutoPilot = allowed;
+    battleManager.rules.allowInvincible = allowed;
+  };
+
   const isDopagaki = settings.dopagaki;
 
   return (
@@ -146,7 +167,7 @@ export default function App() {
         settings.theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'
       } ${isDopagaki ? 'animate-dopagaki-bg' : ''}`}
     >
-      {/* Top Header */}
+      {/* Top Header (非全画面時、または全画面でも隠さない設定の時に表示) */}
       <header
         className={`px-4 py-2 border-b flex items-center justify-between backdrop-blur z-20 transition-colors ${
           settings.theme === 'dark'
@@ -182,7 +203,7 @@ export default function App() {
           <button
             onClick={() => engineRef.current?.toggleAutoInput()}
             title="F2: 自動入力"
-            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded border transition-colors ${
+            className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border transition-colors ${
               settings.autoInput
                 ? 'bg-rose-500 text-white border-rose-400 shadow animate-pulse'
                 : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
@@ -196,7 +217,7 @@ export default function App() {
           <button
             onClick={() => engineRef.current?.toggleVisibleSpace()}
             title="F3: 空白記号表示"
-            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded border transition-colors ${
+            className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border transition-colors ${
               settings.visibleSpace
                 ? 'bg-indigo-600/30 text-indigo-300 border-indigo-500/50'
                 : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:bg-slate-700'
@@ -210,7 +231,7 @@ export default function App() {
           <button
             onClick={() => engineRef.current?.cycleSpeedMultiplier()}
             title="F4: 速度倍率"
-            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded border transition-colors ${
+            className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border transition-colors ${
               settings.speedMultiplier > 1.0
                 ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
                 : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
@@ -223,10 +244,10 @@ export default function App() {
           {/* F5: Dopagaki */}
           <button
             onClick={() => engineRef.current?.toggleDopagaki()}
-            title="F5: ドパガキモード (ネオン＆文字飛び散り演出)"
-            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded border transition-all ${
+            title="F5: ドパガキモード"
+            className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border transition-all ${
               settings.dopagaki
-                ? 'bg-pink-600 text-white border-pink-400 shadow-lg shadow-pink-500/50 scale-105 animate-pulse'
+                ? 'bg-pink-600 text-white border-pink-400 shadow scale-105 animate-pulse'
                 : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
             }`}
           >
@@ -237,10 +258,10 @@ export default function App() {
           {/* F6: AutoPilot */}
           <button
             onClick={() => engineRef.current?.toggleAutoPilot()}
-            title="F6: 完全オートパイロット (ミスゼロ最高速自動クリア)"
-            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded border transition-all ${
+            title="F6: 完全オートパイロット"
+            className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border transition-all ${
               settings.autoPilot
-                ? 'bg-emerald-600 text-white border-emerald-400 shadow-lg shadow-emerald-500/50 scale-105'
+                ? 'bg-emerald-600 text-white border-emerald-400 shadow scale-105'
                 : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
             }`}
           >
@@ -251,10 +272,10 @@ export default function App() {
           {/* F7: Invincible */}
           <button
             onClick={() => engineRef.current?.toggleInvincible()}
-            title="F7: 無敵イージーモード (どんなキーを押しても正解扱い)"
-            className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded border transition-all ${
+            title="F7: 無敵イージーモード"
+            className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded border transition-all ${
               settings.invincible
-                ? 'bg-cyan-600 text-white border-cyan-400 shadow-lg shadow-cyan-500/50 scale-105'
+                ? 'bg-cyan-600 text-white border-cyan-400 shadow scale-105'
                 : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
             }`}
           >
@@ -264,24 +285,34 @@ export default function App() {
 
           <div className="h-4 w-px bg-slate-700 mx-1 hidden sm:block" />
 
-          {/* Online Match Button (7) */}
+          {/* 7. Online Match */}
           <button
             onClick={() => handleKeySend('7')}
             className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/50 transition-colors"
-            title="7. オンライン対戦練習 (タブ間対戦)"
+            title="7. オンライン対戦練習"
           >
             <Swords className="w-3 h-3" />
             <span>7. オンライン</span>
           </button>
 
-          {/* Secret Menu Button (8) */}
+          {/* 8. Achievements */}
           <button
             onClick={() => handleKeySend('8')}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded bg-yellow-600/30 hover:bg-yellow-600/50 text-yellow-300 border border-yellow-500/50 transition-colors"
+            title="8. 獲得実績一覧"
+          >
+            <Award className="w-3 h-3" />
+            <span>8. 実績</span>
+          </button>
+
+          {/* 9. Secret Menu */}
+          <button
+            onClick={() => handleKeySend('9')}
             className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border border-amber-500/50 transition-colors"
-            title="8. 裏メニュー (美佳のタイプトレーナー枠内に統合)"
+            title="9. 裏メニュー (美佳のタイプトレーナー枠内に統合)"
           >
             <Flame className="w-3 h-3" />
-            <span>8. 裏メニュー</span>
+            <span>9. 裏メニュー</span>
           </button>
 
           {/* Sound Toggle */}
@@ -317,25 +348,78 @@ export default function App() {
         </div>
       </header>
 
-      {/* Online PvP Battle Bar (if opponent detected or during battle) */}
-      {opponent && (
-        <div className="bg-gradient-to-r from-indigo-900/90 via-purple-900/90 to-indigo-900/90 border-b border-indigo-700/50 px-4 py-1.5 text-xs flex items-center justify-between text-indigo-100 z-10 shadow">
-          <div className="flex items-center gap-2">
-            <Swords className="w-4 h-4 text-amber-400 animate-spin" />
-            <span className="font-semibold text-amber-300">タブ間リアルタイム対戦接続中:</span>
-            <span>{opponent.name}</span>
+      {/* Online PvP Battle Settings & Status Bar */}
+      <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-indigo-950 border-b border-indigo-800/60 px-4 py-1.5 text-xs flex flex-wrap items-center justify-between gap-3 text-indigo-100 z-10 shadow">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 text-indigo-300 font-bold">
+            <Swords className="w-4 h-4 text-amber-400" />
+            <span>オンライン対戦ルーム設定:</span>
           </div>
-          <div className="flex items-center gap-3 w-1/2 max-w-xs">
-            <div className="w-full bg-slate-800/80 rounded-full h-2.5 overflow-hidden border border-indigo-500/30">
-              <div
-                className="bg-gradient-to-r from-amber-400 to-rose-500 h-2.5 rounded-full transition-all duration-200"
-                style={{ width: `${opponent.progress}%` }}
-              />
-            </div>
-            <span className="font-mono text-amber-300 whitespace-nowrap">{opponent.progress}%</span>
-          </div>
+
+          {/* Room Selector */}
+          <select
+            value={selectedRoom}
+            onChange={(e) => handleRoomChange(e.target.value)}
+            className="bg-slate-900 border border-indigo-700/60 rounded px-2 py-0.5 text-xs text-amber-300 font-mono"
+          >
+            <option value="部屋1 (Room 1)">部屋1 (Room 1)</option>
+            <option value="部屋2 (Room 2)">部屋2 (Room 2)</option>
+            <option value="部屋3 (Room 3)">部屋3 (Room 3)</option>
+            <option value="ガチ対戦部屋">ガチ対戦部屋</option>
+            <option value="フリー対戦部屋">フリー対戦部屋</option>
+          </select>
+
+          {/* Trainer / Genre Selector */}
+          <select
+            value={selectedGenre}
+            onChange={(e) => handleGenreChange(e.target.value as TrainerGenre)}
+            className="bg-slate-900 border border-indigo-700/60 rounded px-2 py-0.5 text-xs text-indigo-200"
+          >
+            <option value="basic_words">基本英単語</option>
+            <option value="msdos">MS-DOSコマンド</option>
+            <option value="c_lang">C言語コード</option>
+            <option value="pascal">パスカル</option>
+            <option value="basic">BASIC</option>
+            <option value="romaji_words">ローマ字単語(完全版)</option>
+            <option value="random_home">ランダム練習</option>
+          </select>
+
+          {/* Cheat Rules */}
+          <button
+            onClick={() => handleCheatToggle(!cheatAllowed)}
+            className={`px-2 py-0.5 rounded border text-[11px] font-medium transition-colors ${
+              cheatAllowed ? 'bg-amber-600/30 border-amber-500/50 text-amber-200' : 'bg-slate-800 border-slate-700 text-slate-400'
+            }`}
+          >
+            {cheatAllowed ? 'チート許可: ON' : 'チート禁止 (正当勝負)'}
+          </button>
         </div>
-      )}
+
+        {/* Opponent Realtime Progress */}
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          {opponent ? (
+            <div className="flex items-center gap-2">
+              <span className="text-emerald-400 font-semibold">{opponent.name} 接続中:</span>
+              <div className="w-28 bg-slate-800 rounded-full h-2 overflow-hidden border border-indigo-500/30">
+                <div
+                  className="bg-gradient-to-r from-amber-400 to-rose-500 h-2 rounded-full transition-all duration-200"
+                  style={{ width: `${opponent.progress}%` }}
+                />
+              </div>
+              <span className="font-mono text-amber-300">{opponent.progress}%</span>
+            </div>
+          ) : (
+            <span className="text-slate-400 text-[11px]">※ 同じブラウザで別タブを開くと自動接続</span>
+          )}
+
+          <button
+            onClick={() => engineRef.current?.startConfiguredBattle()}
+            className="px-2.5 py-0.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs font-bold transition-all shadow"
+          >
+            対戦開始
+          </button>
+        </div>
+      </div>
 
       {/* Main Screen Body */}
       <main className="flex-1 flex flex-col items-center justify-center p-2 sm:p-4 overflow-hidden relative">
@@ -343,29 +427,54 @@ export default function App() {
         <div
           ref={mainFrameRef}
           className={`w-full max-w-5xl flex flex-col items-center rounded-xl p-3 shadow-2xl relative transition-all ${
-            isFullscreen ? 'fixed inset-0 z-50 rounded-none p-4 max-w-none justify-center' : ''
+            isFullscreen ? 'fixed inset-0 z-50 rounded-none p-2 sm:p-4 max-w-none justify-center' : ''
           } ${
             settings.theme === 'dark' ? 'bg-slate-900 border border-slate-800 shadow-black/80' : 'bg-white border border-slate-200 shadow-slate-300'
           } ${isDopagaki ? 'ring-4 ring-pink-500 ring-offset-4 ring-offset-slate-950 animate-pulse' : ''}`}
         >
-          {/* Main Frame Fullscreen Toggle button at top-right of the bezel */}
+          {/* Main Frame Header Bar */}
           <div className="w-full flex items-center justify-between pb-1.5 mb-1 text-[11px] opacity-75">
             <span className="font-mono tracking-wider">MIKA TYPE TRAINER TERMINAL</span>
-            <button
-              onClick={toggleMainFrameFullscreen}
-              className="flex items-center gap-1 px-2 py-0.5 rounded hover:bg-slate-800/50 hover:text-white transition-colors"
-              title={isFullscreen ? 'メイン枠の全画面を解除' : '中心のメイン枠だけを全画面表示'}
-            >
-              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 text-amber-400" /> : <Maximize2 className="w-3.5 h-3.5" />}
-              <span>{isFullscreen ? '全画面解除' : '中心メイン枠を全画面'}</span>
-            </button>
+
+            <div className="flex items-center gap-3">
+              {/* 全画面時に「キー補助すら隠す (純粋Canvasのみ)」トグル */}
+              {isFullscreen && (
+                <button
+                  onClick={() => setHideAuxiliaryInFullscreen(!hideAuxiliaryInFullscreen)}
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded border transition-colors ${
+                    hideAuxiliaryInFullscreen
+                      ? 'bg-rose-600/40 text-rose-300 border-rose-500/60'
+                      : 'bg-slate-800/80 text-slate-300 border-slate-700'
+                  }`}
+                  title="キー補助バーすら隠し、本当に純粋なメイン枠（Canvas）だけにする"
+                >
+                  <CheckSquare className="w-3 h-3" />
+                  <span>{hideAuxiliaryInFullscreen ? 'キー補助を復帰' : 'キー補助すら非表示 (純粋枠)'}</span>
+                </button>
+              )}
+
+              {/* Fullscreen Toggle button */}
+              <button
+                onClick={toggleMainFrameFullscreen}
+                className="flex items-center gap-1 px-2 py-0.5 rounded hover:bg-slate-800/50 hover:text-white transition-colors"
+                title={isFullscreen ? 'メイン枠の全画面を解除' : '中心のメイン枠だけを全画面表示'}
+              >
+                {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 text-amber-400" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                <span>{isFullscreen ? '全画面解除' : '中心メイン枠を全画面'}</span>
+              </button>
+            </div>
           </div>
 
+          {/* Canvas Box */}
           <div className="w-full bg-black rounded-lg overflow-hidden border-2 border-slate-700/80 shadow-inner flex items-center justify-center relative flex-1">
             <canvas
               ref={canvasRef}
               className={`block max-w-full bg-white cursor-pointer ${
-                isFullscreen ? 'h-full w-auto max-h-[88vh]' : 'h-auto max-h-[72vh]'
+                isFullscreen
+                  ? hideAuxiliaryInFullscreen
+                    ? 'h-full w-auto max-h-[96vh]'
+                    : 'h-full w-auto max-h-[85vh]'
+                  : 'h-auto max-h-[72vh]'
               }`}
               onClick={() => {
                 // Keep focus
@@ -397,93 +506,105 @@ export default function App() {
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-black/[0.015] to-black/[0.06]" />
           </div>
 
-          {/* Bottom Virtual Controls for Convenience */}
-          <div
-            className={`w-full mt-3 pt-3 border-t flex flex-wrap items-center justify-between gap-3 text-xs ${
-              settings.theme === 'dark' ? 'border-slate-800' : 'border-slate-200'
-            }`}
-          >
-            {/* Quick Action Key Buttons */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="opacity-60 font-mono mr-1">キー補助:</span>
-              <button
-                onClick={() => handleKeySend('Escape')}
-                className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-mono active:scale-95 transition-all flex items-center gap-1"
-              >
-                <ArrowLeft className="w-3 h-3" /> ESC (戻る)
-              </button>
-              <button
-                onClick={() => handleKeySend('Enter')}
-                className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 font-mono active:scale-95 transition-all"
-              >
-                Enter (決定/リトライ)
-              </button>
-              <button
-                onClick={() => handleKeySend(' ')}
-                className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-mono active:scale-95 transition-all"
-              >
-                Space (ガイド切替)
-              </button>
+          {/* Bottom Virtual Controls for Convenience (全画面でhideAuxiliaryInFullscreenが有効なら完全非表示！) */}
+          {(!isFullscreen || !hideAuxiliaryInFullscreen) && (
+            <div
+              className={`w-full mt-3 pt-3 border-t flex flex-wrap items-center justify-between gap-3 text-xs ${
+                settings.theme === 'dark' ? 'border-slate-800' : 'border-slate-200'
+              }`}
+            >
+              {/* Quick Action Key Buttons */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="opacity-60 font-mono mr-1">キー補助:</span>
+                <button
+                  onClick={() => handleKeySend('Escape')}
+                  className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-mono active:scale-95 transition-all flex items-center gap-1"
+                >
+                  <ArrowLeft className="w-3 h-3" /> ESC (戻る)
+                </button>
+                <button
+                  onClick={() => handleKeySend('Enter')}
+                  className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 font-mono active:scale-95 transition-all"
+                >
+                  Enter (決定/リトライ)
+                </button>
+                <button
+                  onClick={() => handleKeySend(' ')}
+                  className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-mono active:scale-95 transition-all"
+                >
+                  Space (ガイド切替)
+                </button>
 
-              <div className="h-4 w-px bg-slate-700 mx-1 hidden sm:block" />
+                <div className="h-4 w-px bg-slate-700 mx-1 hidden sm:block" />
 
-              {/* Number Buttons 1 to 8 */}
-              <div className="flex items-center gap-1">
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
-                  <button
-                    key={num}
-                    onClick={() => handleKeySend(num.toString())}
-                    className={`w-6 h-6 rounded font-mono text-xs flex items-center justify-center border active:scale-95 transition-colors ${
-                      num === 7
-                        ? 'bg-indigo-600/40 text-indigo-300 border-indigo-500/60 hover:bg-indigo-600/60 font-bold'
-                        : num === 8
-                        ? 'bg-amber-600/40 text-amber-300 border-amber-500/60 hover:bg-amber-600/60 font-bold'
-                        : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700/60'
-                    }`}
-                    title={num === 7 ? '7. オンライン対戦' : num === 8 ? '8. 裏メニュー' : `${num}番を選択`}
-                  >
-                    {num}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Speed slider & Quick Reset */}
-            <div className="flex items-center gap-3">
-              <div
-                className={`flex items-center gap-2 px-2.5 py-1 rounded border ${
-                  settings.theme === 'dark' ? 'bg-slate-950/60 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700'
-                }`}
-              >
-                <Sliders className="w-3.5 h-3.5 opacity-60" />
-                <span>自動打鍵:</span>
-                <input
-                  type="range"
-                  min={10}
-                  max={200}
-                  step={5}
-                  value={settings.autoSpeed}
-                  onChange={(e) => engineRef.current?.setAutoSpeed(Number(e.target.value))}
-                  className="w-20 accent-emerald-500 cursor-pointer"
-                />
-                <span className="font-mono text-emerald-400 w-10 text-right">{settings.autoSpeed}ms</span>
+                {/* Number Buttons 1 to 9 */}
+                <div className="flex items-center gap-1 flex-wrap">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                    <button
+                      key={num}
+                      onClick={() => handleKeySend(num.toString())}
+                      className={`w-6 h-6 rounded font-mono text-xs flex items-center justify-center border active:scale-95 transition-colors ${
+                        num === 7
+                          ? 'bg-indigo-600/40 text-indigo-300 border-indigo-500/60 hover:bg-indigo-600/60 font-bold'
+                          : num === 8
+                          ? 'bg-yellow-600/40 text-yellow-300 border-yellow-500/60 hover:bg-yellow-600/60 font-bold'
+                          : num === 9
+                          ? 'bg-amber-600/40 text-amber-300 border-amber-500/60 hover:bg-amber-600/60 font-bold'
+                          : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300 border-slate-700/60'
+                      }`}
+                      title={
+                        num === 7
+                          ? '7. オンライン対戦'
+                          : num === 8
+                          ? '8. 実績'
+                          : num === 9
+                          ? '9. 裏メニュー'
+                          : `${num}番を選択`
+                      }
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <button
-                onClick={() => {
-                  if (window.confirm('これまでの練習記録・累積練習時間をすべて消去しますか？')) {
-                    engineRef.current?.seisekiclear();
-                    engineRef.current?.dispmen();
-                  }
-                }}
-                className="flex items-center gap-1 px-2.5 py-1 text-slate-400 hover:text-rose-400 bg-slate-800/50 hover:bg-slate-800 rounded border border-slate-700/50 transition-colors"
-                title="成績データを初期化"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>成績消去</span>
-              </button>
+              {/* Speed slider & Quick Reset */}
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex items-center gap-2 px-2.5 py-1 rounded border ${
+                    settings.theme === 'dark' ? 'bg-slate-950/60 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-300 text-slate-700'
+                  }`}
+                >
+                  <Sliders className="w-3.5 h-3.5 opacity-60" />
+                  <span>自動打鍵:</span>
+                  <input
+                    type="range"
+                    min={10}
+                    max={200}
+                    step={5}
+                    value={settings.autoSpeed}
+                    onChange={(e) => engineRef.current?.setAutoSpeed(Number(e.target.value))}
+                    className="w-20 accent-emerald-500 cursor-pointer"
+                  />
+                  <span className="font-mono text-emerald-400 w-10 text-right">{settings.autoSpeed}ms</span>
+                </div>
+
+                <button
+                  onClick={() => {
+                    if (window.confirm('これまでの練習記録・累積練習時間をすべて消去しますか？')) {
+                      engineRef.current?.seisekiclear();
+                      engineRef.current?.dispmen();
+                    }
+                  }}
+                  className="flex items-center gap-1 px-2.5 py-1 text-slate-400 hover:text-rose-400 bg-slate-800/50 hover:bg-slate-800 rounded border border-slate-700/50 transition-colors"
+                  title="成績データを初期化"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>成績消去</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </main>
 
@@ -521,10 +642,12 @@ export default function App() {
 
             <div className="space-y-3 text-xs text-slate-300 leading-relaxed max-h-[70vh] overflow-y-auto pr-2">
               <div className="p-3 bg-slate-950/80 rounded border border-slate-800">
-                <div className="font-medium text-emerald-400 mb-1">【メニュー構成】</div>
-                <p>1〜6: 通常の練習メニューおよび成績</p>
-                <p><span className="font-mono text-indigo-400 font-bold">7. オンライン対戦練習</span>: サーバー不要のタブ間対戦！</p>
-                <p><span className="font-mono text-amber-400 font-bold">8. 裏メニュー</span>: 美佳の画面枠内に統合されたチート・設定画面！</p>
+                <div className="font-medium text-emerald-400 mb-1">【メニュー構成 (1〜9)】</div>
+                <p>1〜4: ポジション練習・ランダム練習・英単語練習・ローマ字練習</p>
+                <p>5〜6: 成績表示・成績消去</p>
+                <p><span className="font-mono text-indigo-400 font-bold">7. オンライン対戦練習</span>: 部屋選択・出題単元選択・チート制限を設定してタブ間対戦！</p>
+                <p><span className="font-mono text-yellow-400 font-bold">8. 実績</span>: 獲得したアチーブメント一覧をCanvas内で確認！</p>
+                <p><span className="font-mono text-amber-400 font-bold">9. 裏メニュー</span>: チート・倍率設定・サウンド切替が可能な隠しメニュー！</p>
               </div>
 
               <div className="p-3 bg-slate-950/80 rounded border border-slate-800">
@@ -542,8 +665,8 @@ export default function App() {
               </div>
 
               <div className="p-3 bg-slate-950/80 rounded border border-slate-800">
-                <div className="font-medium text-amber-400 mb-1">【ローカルでの動作について (CORSエラー対策)】</div>
-                <p>ブラウザのセキュリティ仕様上、HTMLファイルを直接ダブルクリック（<code>file://</code>）で開くとスクリプト読み込みがブロックされます。VS Codeの「Live Server」拡張機能や、<code>npx serve</code> などのローカルWebサーバー経由でお使いください。</p>
+                <div className="font-medium text-amber-400 mb-1">【全画面モード】</div>
+                <p>枠右上のボタンで「中心メイン枠だけ全画面」に拡大できます。「キー補助すら非表示 (純粋枠)」をONにすると、下部のボタンすら消去され、100% CanvasだけのレトロPC画面に没頭できます。</p>
               </div>
             </div>
 
