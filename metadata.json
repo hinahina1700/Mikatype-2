@@ -1,0 +1,7 @@
+{
+  "name": "美佳のタイプトレーナー Web (統合版)",
+  "description": "名作タイピング練習ソフト「美佳のタイプトレーナー」JavaScript版の完全統合版。自動入力モード、スペース表示切替、速度倍率、成績永続保存を完全実装。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

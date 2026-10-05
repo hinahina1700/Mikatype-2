@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>美佳のタイプトレーナー Web (統合版)</title>
+    <meta name="description" content="名作タイピング練習ソフト「美佳のタイプトレーナー」JavaScript版の完全統合版。自動入力モード、スペース表示切替、速度倍率、成績永続保存を完全実装。" />
+    <meta property="og:title" content="美佳のタイプトレーナー Web (統合版)" />
+    <meta property="og:description" content="名作タイピング練習ソフト「美佳のタイプトレーナー」JavaScript版の完全統合版。自動入力モード、スペース表示切替、速度倍率、成績永続保存を完全実装。" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="file-protocol-warning" style="display:none; position:fixed; inset:0; background:#0f172a; color:#f8fafc; font-family:sans-serif; padding:2rem; z-index:99999; box-sizing:border-box; overflow:auto;">
+      <div style="max-width:600px; margin:2rem auto; background:#1e293b; padding:2rem; border-radius:12px; border:2px solid #f59e0b; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">
+        <h2 style="color:#fbbf24; margin-top:0; font-size:1.4rem;">⚠️ ローカルファイル (file://) で開かれています</h2>
+        <p style="font-size:0.95rem; line-height:1.6; color:#cbd5e1;">
+          ブラウザのセキュリティ制限 (CORS) により、ファイルを直接ダブルクリック (<code>file://</code>) して開くことはできません。
+        </p>
+        <div style="background:#0f172a; padding:1rem; border-radius:8px; margin:1rem 0; font-family:monospace; font-size:0.85rem; color:#38bdf8;">
+          <strong>【解決方法 (いずれか1つ)】</strong><br><br>
+          1. <strong>VS Codeをお使いの場合:</strong><br>
+             拡張機能「Live Server」をインストールし、右下の「Go Live」をクリック<br><br>
+          2. <strong>コマンドラインをお使いの場合:</strong><br>
+             このフォルダで <code>npx serve</code> または <code>npm run dev</code> を実行<br><br>
+          3. <strong>オンライン版:</strong><br>
+             Webブラウザから公開URLにアクセス
+        </div>
+      </div>
+    </div>
+    <script>
+      if (window.location.protocol === 'file:') {
+        var warn = document.getElementById('file-protocol-warning');
+        if (warn) warn.style.display = 'block';
+      }
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
